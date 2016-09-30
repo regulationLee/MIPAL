@@ -23,10 +23,14 @@ def conv2d(X, W):
 def max_pool_2x2(X):
     return tf.nn.max_pool(X, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME')
 
+
+
 # Import data
 from tensorflow.examples.tutorials.mnist import input_data
 
 import tensorflow as tf
+sess = tf.InteractiveSession()
+
 
 flags = tf.app.flags
 FLAGS = flags.FLAGS
@@ -34,9 +38,10 @@ flags.DEFINE_string('data_dir', '/tmp/data/', 'Directory for storing data')
 
 mnist = input_data.read_data_sets(FLAGS.data_dir, one_hot=True)
 
-learning_rate = 0.01
-training_epochs = 1
-batch_size = 100
+learning_rate = 0.001
+training_epochs = 25
+batch_size = 5
+dropout_r = 0.7
 display_step = 1
 
 # tensorflow graph input
@@ -52,7 +57,7 @@ W_conv2 = weight_variable([5, 5, 32, 64])
 b_conv2 = bias_variable([64])
 
 W_fc1 = weight_variable([7 * 7 * 64, 1024])
-b_fc1 = bias_variable([1024])
+b_fc1 = bias_variable([1024]   )
 
 # Reshape image for apply CNN
 x_image = tf.reshape(X, [-1, 28, 28, 1])
@@ -84,41 +89,38 @@ b_fc2 = bias_variable([10])
 activation = tf.nn.softmax(tf.matmul(h_fc1_drop, W_fc2) + b_fc2)
 
 # Define cost function and optimizer
-cost = tf.reduce_mean(-tf.reduce_sum(y_*tf.log(activation), reduction_indices=[1])) # cross-entropy
+cost = tf.reduce_mean(-tf.reduce_sum(y_ * tf.log(activation), reduction_indices=[1])) # cross-entropy
         # reduce_mean : Computes the mean of elements across dimensions of a tensor
 optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(cost) # Gradient descent
 
 # Before starting, initialize the variables.
-init = tf.initialize_all_variables()
+sess.run(tf.initialize_all_variables())
 
-with tf.Session() as sess:
-    sess.run(init)
+# Training cycle
+for epoch in range(training_epochs):
+    avg_cost = 0.
+    total_batch = int(mnist.train.num_examples/batch_size)
 
-    # Training cycle
-    for epoch in range(training_epochs):
-        avg_cost = 0.
-        total_batch = int(mnist.train.num_examples/batch_size)
+    # Fit the line
+    for step in xrange(total_batch):
+        batch_xs, batch_ys = mnist.train.next_batch(batch_size)
 
-        # Fit the line
-        for step in xrange(total_batch):
-            batch_xs, batch_ys = mnist.train.next_batch(batch_size)
+        # Fit training using batch data
+        optimizer.run(feed_dict={X: batch_xs, y_: batch_ys, dropout_rate: dropout_r})
 
-            # Fit training using batch data
-            sess.run(optimizer, feed_dict={X: batch_xs, y_: batch_ys, dropout_rate: 0.7})
+        # Compute average loss
+        avg_cost += sess.run(cost, feed_dict={X: batch_xs, y_: batch_ys, dropout_rate: dropout_r})/total_batch
 
-            # Compute average loss
-            avg_cost += sess.run(cost, feed_dict={X: batch_xs, y_: batch_ys, dropout_rate: 0.7})/total_batch
+    # Display logs per epoch step
+    if epoch % display_step == 0:
+        print ("Epoch:", '%04d' % (epoch + 1), "cost=", '%.9F' %(avg_cost))
 
-        # Display logs per epoch step
-        if epoch % display_step == 0:
-            print ("Epoch:", '%04d' % (epoch + 1), "cost=", "{:.9F}".format(avg_cost))
+print ("Optimization Finished!")
 
-    print ("Optimization Finished!")
+# Test model
+correct_prediction = tf.equal(tf.argmax(activation, 1), tf.argmax(y_, 1))
+# Calculate accuracy
+accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
 
-    # Test model
-    correct_prediction = tf.equal(tf.argmax(activation, 1), tf.argmax(y_, 1))
-    # Calculate accuracy
-    accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
-
-    print("Accuracy: ", accuracy.eval({X: mnist.test.images, y_: mnist.test.labels, dropout_rate: 1}))
+print("Accuracy: ", accuracy.eval(feed_dict={X: mnist.test.images, y_: mnist.test.labels, dropout_rate: 1}))
 
