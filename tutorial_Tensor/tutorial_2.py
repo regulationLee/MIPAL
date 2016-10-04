@@ -38,9 +38,9 @@ flags.DEFINE_string('data_dir', '/tmp/data/', 'Directory for storing data')
 
 mnist = input_data.read_data_sets(FLAGS.data_dir, one_hot=True)
 
-learning_rate = 0.001
+learning_rate = 0.0001
 training_epochs = 25
-batch_size = 5
+batch_size = 100
 dropout_r = 0.7
 display_step = 1
 
